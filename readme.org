@@ -1,0 +1,10 @@
+* Textractor Updater
+
+This is a simple [[https://github.com/Artikash/Textractor][Textractor]] updater written in Rust.
+It'll check for updates then launch the software.
+
+* Requirements
+None (besides a rust toolchain to compile)
+
+* Building from source
+...
