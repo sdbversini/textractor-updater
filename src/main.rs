@@ -4,5 +4,6 @@ mod updater;
 
 
 fn main() {
-    let _updater = Updater::new();
+    let mut updater = Updater::new();
+    updater.update_and_run("x86");
 }

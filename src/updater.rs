@@ -97,13 +97,35 @@ impl Updater {
             }
         }
     }
+
+    fn execute_program(version: &str) {
+        let _ = std::process::Command::new("cmd")
+            .args(&["/C", "start", "", &format!(r".\{}\Textractor.exe", version)])
+            .spawn()
+            .unwrap();
+    }
+
     fn delete_zip() {
         let mut path = PathBuf::from(std::env::current_dir().unwrap());
         path.push("latest.zip");
-        match std::fs::remove_file(path){
+        match std::fs::remove_file(path) {
             Ok(_) => { println!("latest.zip successfully deleted!") }
             Err(e) => { println!("{}", e); }
         }
+    }
+
+    pub fn update_and_run(&mut self, version: &str) {
+        self.set_remote_version();
+        match self.download_latest() {
+            Version::UpToDate() => {
+                println!("Your version is up-to date, woo!");
+            }
+            Version::Downloaded() => {
+                self.extract_archive();
+                Updater::delete_zip();
+            }
+        }
+        Updater::execute_program(version);
     }
 }
 
@@ -157,9 +179,28 @@ mod tests {
         updater.extract_archive();
     }
 
+    #[test]
+    fn test_exec_executable_x86() {
+        Updater::execute_program("x86");
+    }
+
+    #[test]
+    fn test_exec_executable_x64() {
+        Updater::execute_program("x64");
+    }
 
     #[test]
     fn test_remove_zip() {
         Updater::delete_zip();
     }
+
+    // #[test]
+    // fn test_exec_executable_not_found() {
+    //     println!("{:?}", std::env::current_exe());
+    //     println!("{:?}", std::env::current_dir());
+    //     let mut path = PathBuf::from( std::env::current_dir().unwrap());
+    //     path.push("x86");
+    //     std::fs::remove_dir_all(path);
+    //     Updater::execute_program();
+    // }
 }
