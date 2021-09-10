@@ -59,6 +59,52 @@ impl Updater {
             Version::UpToDate()
         }
     }
+
+    fn extract_archive(&self) {
+        let filename = std::path::Path::new("latest.zip");
+        let file = std::fs::File::open(&filename).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+
+        let truncate_textractor = |path: &Path| -> PathBuf {
+            let components = path.iter().filter(|x| *x != OsStr::new("Textractor"));
+            components.collect::<PathBuf>()
+        };
+
+        for i in 1..archive.len() {
+            let mut file = archive.by_index(i).unwrap();
+            let outpath = match file.enclosed_name() {
+                Some(path) => truncate_textractor(path),
+                None => continue,
+            };
+
+            if (&*file.name()).ends_with('/') {
+                println!("File {} extracted to \"{}\"", i, outpath.display());
+                std::fs::create_dir_all(&outpath).unwrap();
+            } else {
+                println!(
+                    "File {} extracted to \"{}\" ({} bytes)",
+                    i,
+                    outpath.display(),
+                    file.size()
+                );
+                if let Some(p) = outpath.parent() {
+                    if !p.exists() {
+                        std::fs::create_dir_all(&p).unwrap();
+                    }
+                }
+                let mut outfile = std::fs::File::create(&outpath).unwrap();
+                std::io::copy(&mut file, &mut outfile).unwrap();
+            }
+        }
+    }
+    fn delete_zip() {
+        let mut path = PathBuf::from(std::env::current_dir().unwrap());
+        path.push("latest.zip");
+        match std::fs::remove_file(path){
+            Ok(_) => { println!("latest.zip successfully deleted!") }
+            Err(e) => { println!("{}", e); }
+        }
+    }
 }
 
 
@@ -102,5 +148,18 @@ mod tests {
         let mut updater = Updater::new();
         updater.current_tag = String::from("v0.0.1");
         assert_eq!(updater.download_latest(), Version::Downloaded());
+    }
+
+    #[test]
+    fn test_extract_archive() {
+        let mut updater = Updater::new();
+        updater.download_from_url(URL501);
+        updater.extract_archive();
+    }
+
+
+    #[test]
+    fn test_remove_zip() {
+        Updater::delete_zip();
     }
 }
