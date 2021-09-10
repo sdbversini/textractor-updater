@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::io::Cursor;
+use std::io::{Cursor, ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
 use reqwest::header::ACCEPT;
@@ -33,6 +33,33 @@ impl Updater {
         let json = resp.json::<serde_json::Value>().unwrap();
         self.latest_tag = json.get("tag_name").unwrap().to_string().trim_matches('"').to_owned();
     }
+
+    /// Writes current_tag to version.ini
+    fn write_tag(&self) {
+        let mut file = std::fs::File::create("version.ini").unwrap();
+        file.write(&self.current_tag.as_bytes()).unwrap();
+    }
+
+    /// Attempts to read Updater.current_tag from the value read in version.ini
+    /// DOES NOT update the .ini file
+    fn set_current_tag(&mut self) {
+        match std::fs::File::open("version.ini") {
+            Ok(mut file) => {
+                self.current_tag.clear();
+                file.read_to_string(&mut self.current_tag).unwrap();
+            }
+            Err(e) => {
+                match e.kind() {
+                    ErrorKind::NotFound => {
+                        println!("version.ini not found... Downloading latest version forcibly");
+                        self.current_tag = String::from("v0.0.0");
+                    }
+                    _ => { panic!("An unexpected error has occurred"); }
+                }
+            }
+        }
+    }
+
     /// Downloads the file at the specified URL, naming it latest.zip
     fn download_from_url(&mut self, url: &str) {
         let resp = reqwest::blocking::get(url).unwrap();
@@ -116,6 +143,7 @@ impl Updater {
 
     pub fn update_and_run(&mut self, version: &str) {
         self.set_remote_version();
+        self.set_current_tag();
         match self.download_latest() {
             Version::UpToDate() => {
                 println!("Your version is up-to date, woo!");
@@ -123,6 +151,8 @@ impl Updater {
             Version::Downloaded() => {
                 self.extract_archive();
                 Updater::delete_zip();
+                self.current_tag = self.latest_tag.clone();
+                self.write_tag();
             }
         }
         Updater::execute_program(version);
@@ -192,6 +222,23 @@ mod tests {
     #[test]
     fn test_remove_zip() {
         Updater::delete_zip();
+    }
+
+    #[test]
+    fn test_write_tag() {
+        let mut updater = Updater::new();
+        updater.current_tag = String::from("v0.5.1");
+        updater.write_tag();
+    }
+
+    #[test]
+    fn test_set_version_file_exists() {}
+
+    #[test]
+    fn test_set_version_file_does_not_exist() {
+        let mut updater = Updater::new();
+        updater.set_current_tag();
+        assert_eq!(updater.current_tag, "v0.0.0");
     }
 
     // #[test]
