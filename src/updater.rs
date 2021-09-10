@@ -17,6 +17,9 @@ enum Version {
     Downloaded(),
 }
 
+#[derive(Debug, Clone)]
+struct APIConnectError;
+
 impl Updater {
     pub fn new() -> Updater {
         Updater {
@@ -26,12 +29,16 @@ impl Updater {
         }
     }
     /// Returns the latest version in the git remote
-    fn set_remote_version(&mut self) {
+    fn set_remote_version(&mut self) -> Result<(), APIConnectError> {
         let latest_url = format!("{}/latest", self.base_url);
         let client = reqwest::blocking::Client::new();
-        let resp = client.get(latest_url).header(ACCEPT, "application/json").send().unwrap();
+        let resp = match client.get(latest_url).header(ACCEPT, "application/json").send(){
+            Ok(resp) => resp,
+            Err(_) => return Err(APIConnectError)
+        };
         let json = resp.json::<serde_json::Value>().unwrap();
         self.latest_tag = json.get("tag_name").unwrap().to_string().trim_matches('"').to_owned();
+        Ok(())
     }
 
     /// Writes current_tag to version.ini
@@ -142,9 +149,14 @@ impl Updater {
     }
 
     pub fn update_and_run(&mut self, version: &str) {
-        self.set_remote_version();
+        if self.set_remote_version().is_err() {
+            println!("Error contacting github's server, launching the version you already have");
+            Updater::execute_program(version);
+            return;
+        }
         self.set_current_tag();
         match self.download_latest() {
+            //TODO match error downloading, killing the process if not even having a local version
             Version::UpToDate() => {
                 println!("Your version is up-to date, woo!");
             }
@@ -170,7 +182,7 @@ mod tests {
     #[test]
     fn test_get_remote_version() {
         let mut updater = Updater::new();
-        updater.set_remote_version();
+        assert!(updater.set_remote_version().is_ok()) ;
         assert_eq!(updater.latest_tag, "v5.0.1");
     }
 
@@ -239,6 +251,12 @@ mod tests {
         let mut updater = Updater::new();
         updater.set_current_tag();
         assert_eq!(updater.current_tag, "v0.0.0");
+    }
+    #[test]
+    fn test_url_api_problem() {
+        let mut updater = Updater::new();
+        updater.base_url = String::from("http://404");
+        assert!(updater.set_remote_version().is_err());
     }
 
     // #[test]
