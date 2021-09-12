@@ -10,7 +10,6 @@ pub struct Updater {
     latest_tag: String,
 }
 
-
 #[derive(PartialEq, Debug)]
 enum Version {
     UpToDate(),
@@ -32,19 +31,28 @@ impl Updater {
     fn set_remote_version(&mut self) -> Result<(), APIConnectError> {
         let latest_url = format!("{}/latest", self.base_url);
         let client = reqwest::blocking::Client::new();
-        let resp = match client.get(latest_url).header(ACCEPT, "application/json").send(){
+        let resp = match client
+            .get(latest_url)
+            .header(ACCEPT, "application/json")
+            .send()
+        {
             Ok(resp) => resp,
-            Err(_) => return Err(APIConnectError)
+            Err(_) => return Err(APIConnectError),
         };
         let json = resp.json::<serde_json::Value>().unwrap();
-        self.latest_tag = json.get("tag_name").unwrap().to_string().trim_matches('"').to_owned();
+        self.latest_tag = json
+            .get("tag_name")
+            .unwrap()
+            .to_string()
+            .trim_matches('"')
+            .to_owned();
         Ok(())
     }
 
     /// Writes current_tag to version.ini
     fn write_tag(&self) {
         let mut file = std::fs::File::create("version.ini").unwrap();
-        file.write(&self.current_tag.as_bytes()).unwrap();
+        file.write_all(self.current_tag.as_bytes()).unwrap();
     }
 
     /// Attempts to read Updater.current_tag from the value read in version.ini
@@ -55,15 +63,15 @@ impl Updater {
                 self.current_tag.clear();
                 file.read_to_string(&mut self.current_tag).unwrap();
             }
-            Err(e) => {
-                match e.kind() {
-                    ErrorKind::NotFound => {
-                        println!("version.ini not found... Downloading latest version forcibly");
-                        self.current_tag = String::from("v0.0.0");
-                    }
-                    _ => { panic!("An unexpected error has occurred"); }
+            Err(e) => match e.kind() {
+                ErrorKind::NotFound => {
+                    println!("version.ini not found... Downloading latest version forcibly");
+                    self.current_tag = String::from("v0.0.0");
                 }
-            }
+                _ => {
+                    panic!("An unexpected error has occurred");
+                }
+            },
         }
     }
 
@@ -79,7 +87,10 @@ impl Updater {
     fn get_download_url(&self) -> String {
         let mut version = String::from(&self.latest_tag);
         version.replace_range(0..1, "");
-        let url = format!("{}/download/{}/Textractor-{}-Zip-Version-English-Only.zip", self.base_url, self.latest_tag, version);
+        let url = format!(
+            "{}/download/{}/Textractor-{}-Zip-Version-English-Only.zip",
+            self.base_url, self.latest_tag, version
+        );
         String::from(&url)
     }
 
@@ -140,11 +151,15 @@ impl Updater {
     }
 
     fn delete_zip() {
-        let mut path = PathBuf::from(std::env::current_dir().unwrap());
+        let mut path = std::env::current_dir().unwrap();
         path.push("latest.zip");
         match std::fs::remove_file(path) {
-            Ok(_) => { println!("latest.zip successfully deleted!") }
-            Err(e) => { println!("{}", e); }
+            Ok(_) => {
+                println!("latest.zip successfully deleted!")
+            }
+            Err(e) => {
+                println!("{}", e);
+            }
         }
     }
 
@@ -171,7 +186,6 @@ impl Updater {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,7 +196,7 @@ mod tests {
     #[test]
     fn test_get_remote_version() {
         let mut updater = Updater::new();
-        assert!(updater.set_remote_version().is_ok()) ;
+        assert!(updater.set_remote_version().is_ok());
         assert_eq!(updater.latest_tag, "v5.0.1");
     }
 
