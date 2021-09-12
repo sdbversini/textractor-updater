@@ -85,13 +85,13 @@ impl Updater {
 
     /// Returns the download URL of the latest remote version
     fn get_download_url(&self) -> String {
-        let mut version = String::from(&self.latest_tag);
+        let mut version = self.latest_tag.clone();
         version.replace_range(0..1, "");
         let url = format!(
             "{}/download/{}/Textractor-{}-Zip-Version-English-Only.zip",
             self.base_url, self.latest_tag, version
         );
-        String::from(&url)
+        url
     }
 
     /// Checks if up to date and downloads the latest version if not
