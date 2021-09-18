@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::io::{Cursor, ErrorKind, Read, Write};
+use std::os::unix::prelude::FileExt;
 use std::path::{Path, PathBuf};
 
 use reqwest::header::ACCEPT;
@@ -236,11 +237,13 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_exec_executable_x86() {
         Updater::execute_program("x86");
     }
 
     #[test]
+    #[ignore]
     fn test_exec_executable_x64() {
         Updater::execute_program("x64");
     }
